@@ -5,17 +5,65 @@
     <title>title</title>
 </head>
 <body>
-    <button onclick="getLocation()">Get Current Location</button>
-    <p id="location"></p>
+    <button onclick="getWeather()">Get Current Weather</button>
+    <pre id="location"></pre>
+    <pre id="weather_info"></pre>
 </body>
 </html>
     <script>
-        function getLocation() {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                document.getElementById('location').textContent =
-                    `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`
+        const units = 'imperial'
+        let lat = 0, lon = 0
+
+        function calculateDewPoint(tempF, humidity) {
+            const tempC = (tempF - 32) * 5 / 9;
+            const alpha = Math.log(humidity / 100) + (17.62 * tempC) / (243.12 + tempC);
+            const dewPointC = (243.12 * alpha) / (17.62 - alpha);
+            const dewPointF = (dewPointC * 9 / 5) + 32;
+            return Math.round(dewPointF);
+        }
+        async function getLocation() {
+            return new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        lat = position.coords.latitude
+                        lon = position.coords.longitude
+                        resolve()
+                    },
+                    error => reject(error)
+                )
             })
         }
+
+        async function getWeather() {
+            await getLocation()
+
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=5321a654c74e1be17cf0a3ffd37fd5e2&units=${units}`)
+            const data = await response.json()
+            
+            const {visibility, wind, clouds, rain, snow, name} = data
+            const {main, description, icon} = data.weather[0]
+            const {temp, feels_like, pressure, humidity} = data.main
+            
+            document.getElementById('weather_info').textContent = 
+`
+${name}
+
+Weather: ${description.replace(/\b\w/g, char => char.toUpperCase())}
+Temperature: ${temp}
+Feels Like: ${feels_like}
+Humidity: ${humidity}
+Dew Point: ${calculateDewPoint(temp, humidity)}
+Visibility: ${visibility}
+Wind Speed: ${wind.speed}
+Wind Gusts: ${wind.gust}
+Cloud Cover: ${clouds.all}
+
+Coordinates: ${lat}, ${lon}
+                `
+            }
+
+            //Rain 1h: ${rain["1h"]}
+            //Snow 1h: ${snow["1h"]}
     </script>
 </body>
 </html>
